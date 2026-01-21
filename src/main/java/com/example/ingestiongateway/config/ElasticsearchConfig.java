@@ -74,7 +74,7 @@ public class ElasticsearchConfig {
                 "actions": {}
               },
               "delete": {
-                "min_age": "5m",
+                "min_age": "7d",
                 "actions": {
                   "delete": {}
                 }

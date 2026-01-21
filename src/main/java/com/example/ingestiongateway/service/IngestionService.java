@@ -69,14 +69,6 @@ public class IngestionService {
         // If files are huge, we might want to do this async, but the requirement says
         // "after all files are done, then we change status to ready".
         // Parallel stream for speed if multiple files.
-        // DEMO MODE: Wait 10 seconds so user can observe PENDING state
-        try {
-            log.info("DEMO: Waiting 10 seconds before MinIO upload (observe PENDING state)...");
-            Thread.sleep(10000);
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-        }
-
         try {
             files.parallelStream().forEach(file -> minioService.uploadFile(batchId, file));
         } catch (Exception e) {
