@@ -5,9 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.ilm.PutLifecycleRequest;
-import co.elastic.clients.elasticsearch.indices.PutIndexTemplateRequest;
-import co.elastic.clients.transport.TransportUtils;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -25,13 +22,32 @@ public class ElasticsearchConfig {
 
   @PostConstruct
   public void setupIlmAndTemplate() {
-    try {
-      setupLifecyclePolicy();
-      setupIndexTemplate();
+    // Retry with exponential backoff because ES may not be ready when app starts
+    int maxRetries = 10;
+    int retryDelayMs = 2000;
 
-      log.info("Elasticsearch ILM policy and template configured successfully.");
-    } catch (Exception e) {
-      log.error("Failed to configure Elasticsearch ILM/Template", e);
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        log.info("Attempting to configure Elasticsearch ILM/Template (attempt {}/{})", attempt, maxRetries);
+        setupLifecyclePolicy();
+        setupIndexTemplate();
+        log.info("Elasticsearch ILM policy and template configured successfully.");
+        return; // Success, exit the retry loop
+      } catch (Exception e) {
+        log.warn("Failed to configure Elasticsearch ILM/Template (attempt {}/{}): {}",
+            attempt, maxRetries, e.getMessage());
+        if (attempt < maxRetries) {
+          try {
+            Thread.sleep(retryDelayMs);
+            retryDelayMs = Math.min(retryDelayMs * 2, 30000); // Exponential backoff, max 30s
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+        } else {
+          log.error("Failed to configure Elasticsearch ILM/Template after {} attempts", maxRetries, e);
+        }
+      }
     }
   }
 
@@ -58,7 +74,7 @@ public class ElasticsearchConfig {
                 "actions": {}
               },
               "delete": {
-                "min_age": "30s",
+                "min_age": "5m",
                 "actions": {
                   "delete": {}
                 }

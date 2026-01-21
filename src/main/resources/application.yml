@@ -20,7 +20,7 @@ minio:
 
 app:
   worker:
-    cron: "0 */5 * * * *" # Every 5 minutes
+    cron: "*/30 * * * * *" # Every 30 seconds (for demo)
     topics:
       alpha: topic-alpha
       beta: topic-beta
