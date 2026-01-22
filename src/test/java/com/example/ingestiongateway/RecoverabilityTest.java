@@ -8,7 +8,7 @@ import com.example.ingestiongateway.worker.BatchProcessor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
+
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -21,7 +21,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -83,6 +82,7 @@ public class RecoverabilityTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void testKafkaDownRecovery() {
         // 1. Simulate Kafka Down during Ingestion
         // Arrange

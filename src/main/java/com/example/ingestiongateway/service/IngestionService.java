@@ -31,7 +31,32 @@ public class IngestionService {
         String batchId = UUID.randomUUID().toString();
         long timestamp = Instant.now().toEpochMilli();
 
-        // 1. Prepare Metadata Lists & Transfer Requests
+        // 1. Create and Save PENDING Document
+        UserInputRecord userInput = new UserInputRecord(
+                userName,
+                "upload",
+                new InnerRecord("source", "web-api"));
+
+        BatchDocument document = BatchDocument.builder()
+                .id(batchId)
+                .status("PENDING")
+                .ingestionTimestamp(timestamp)
+                .createdAt(new Date())
+                .userInput(userInput)
+                .build();
+
+        mongoTemplate.save(document);
+        log.info("Saved PENDING batch: {}", batchId);
+
+        // DELAY FOR DEMO PURPOSES
+        try {
+            log.info("Sleeping for 5 seconds to show PENDING state...");
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // 2. Prepare Metadata Lists & Transfer Requests
         List<FileMetadata> metadataAlpha = new ArrayList<>();
         List<FileMetadata> metadataBeta = new ArrayList<>();
         List<com.example.ingestiongateway.model.FileTransferRequest> transferRequests = new ArrayList<>();
@@ -67,27 +92,16 @@ public class IngestionService {
                 metadataBeta.add(meta);
             }
 
-            // 2. Create and Save READY Document
-            UserInputRecord userInput = new UserInputRecord(
-                    userName,
-                    "upload",
-                    new InnerRecord("source", "web-api"));
-
-            BatchDocument document = BatchDocument.builder()
-                    .id(batchId)
-                    .status("READY") // Directly READY as we have uploaded to tmp
-                    .ingestionTimestamp(timestamp)
-                    .createdAt(new Date())
-                    .userInput(userInput)
-                    .kafkaMetadataAlpha(metadataAlpha)
-                    .kafkaMetadataBeta(metadataBeta)
-                    .transferRequests(transferRequests)
-                    .build();
+            // 3. Update and Save READY Document
+            document.setStatus("READY");
+            document.setKafkaMetadataAlpha(metadataAlpha);
+            document.setKafkaMetadataBeta(metadataBeta);
+            document.setTransferRequests(transferRequests);
 
             mongoTemplate.save(document);
             log.info("Saved READY batch: {}", batchId);
 
-            // 3. Fire Event to Kafka
+            // 4. Fire Event to Kafka
             try {
                 kafkaTemplate.send(ingestionTopic, document);
                 log.info("Published ingestion event for Batch ID: {}", batchId);
@@ -97,6 +111,7 @@ public class IngestionService {
 
         } catch (Exception e) {
             log.error("Upload/Ingestion failed for Batch ID: {}", batchId, e);
+            // Optional: Update status to FAILED here if desired, but throw for now
             throw new RuntimeException("Ingestion failed", e);
         }
 

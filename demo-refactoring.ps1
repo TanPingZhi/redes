@@ -1,6 +1,6 @@
 # Demo Script for Refactored Ingestion Gateway (Compatible)
 
-param([string]$Mode)
+param([string]$Mode, [switch]$Auto)
 
 $Url = "http://localhost:8080/api/batches/upload"
 $UserName = "demo-user"
@@ -41,12 +41,13 @@ function Upload-File {
 }
 
 function Monitor-Status {
-    param($BatchId)
+    param($BatchId, $MaxRetries = 30)
     Write-Host "`n[Monitoring] Checking MongoDB status for Batch ID: $BatchId" -ForegroundColor Yellow
     Write-Host "Press Ctrl+C to stop monitoring." -ForegroundColor Gray
     
     $done = $false
-    while (-not $done) {
+    $retries = 0
+    while (-not $done -and $retries -lt $MaxRetries) {
         Start-Sleep -Seconds 2
         try {
             # Use docker exec to query mongodb inside the container
@@ -68,32 +69,38 @@ function Monitor-Status {
         } catch {
             Write-Host "Error querying MongoDB (is the container running?)" -ForegroundColor Red
         }
+        $retries++
+    }
+    if (-not $done) {
+        Write-Host "Timeout reached while monitoring status." -ForegroundColor Red
     }
 }
 
 Clear-Host
 Write-Host "=== Ingestion Gateway Refactoring Demo ===" -ForegroundColor Yellow
-Write-Host "1. Happy Path Demo"
-Write-Host "2. Recovery Demo (Instructions)"
+Write-Host "Mode: $Mode"
 Write-Host "========================================"
 
-$choice = $Mode
-if ([string]::IsNullOrWhiteSpace($choice)) {
-    $choice = Read-Host "Select an option (1/2)"
+if ([string]::IsNullOrWhiteSpace($Mode)) {
+    Write-Host "1. Happy Path Demo"
+    Write-Host "2. Recovery Demo (Instructions)"
+    $Mode = Read-Host "Select an option (1/2)"
 }
 
-if ($choice -eq "1") {
+if ($Mode -eq "1" -or $Mode -eq "HAPPY_PATH") {
     Write-Host "`n[Happy Path] Uploading files..." -ForegroundColor Yellow
     $batchId = Upload-File -Paths $FilePaths
     if ($batchId) {
         Monitor-Status -BatchId $batchId
     }
 }
-elseif ($choice -eq "2") {
+elseif ($Mode -eq "2" -or $Mode -eq "RECOVERY") {
     Write-Host "`n[Recovery Demo] Instructions:" -ForegroundColor Yellow
-    Write-Host "1. STOP your Kafka container now (e.g., 'docker stop <kafka-id>')."
-    Write-Host "2. Press Enter to proceed with upload."
-    Read-Host
+    if (-not $Auto) {
+        Write-Host "1. STOP your Kafka container now (e.g., 'docker stop <kafka-id>')."
+        Write-Host "2. Press Enter to proceed with upload."
+        Read-Host
+    }
     
     Write-Host "Uploading..." -ForegroundColor Yellow
     $batchId = Upload-File -Paths $FilePaths
@@ -101,12 +108,14 @@ elseif ($choice -eq "2") {
     if ($batchId) {
         Write-Host "`nThe batch should stay in READY state because Kafka is down." -ForegroundColor Gray
         Write-Host "We will start monitoring. While monitoring:" -ForegroundColor Gray
-        Write-Host "   - START your Kafka container again."
-        Write-Host "   - Wait for the scheduled task (every 5 mins) to recover it."
+        if (-not $Auto) {
+            Write-Host "   - START your Kafka container again."
+            Write-Host "   - Wait for the scheduled task (every 30s) to recover it."
+        }
         Write-Host "   - Status should change to DONE."
-        Monitor-Status -BatchId $batchId
+        Monitor-Status -BatchId $batchId -MaxRetries 60
     }
 }
 else {
-    Write-Host "Invalid option."
+    Write-Host "Invalid option: $Mode"
 }

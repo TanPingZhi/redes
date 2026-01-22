@@ -29,7 +29,7 @@ minio:
 
 app:
   worker:
-    cron: "0 */5 * * * *" # Every 5 minutes
+    cron: "*/30 * * * * *" # Every 30 seconds for demo
     topics:
       ingestion: batch.ingestion.events
       alpha: topic-alpha

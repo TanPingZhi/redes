@@ -65,6 +65,14 @@ public class BatchProcessor {
         try {
             log.info("Processing event for Batch ID: {}", batch.getId());
 
+            // DELAY FOR DEMO PURPOSES
+            try {
+                log.info("Sleeping for 5 seconds to show READY state...");
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
             // 1. Idempotency Check
             BatchDocument currentDbState = mongoTemplate.findById(batch.getId(), BatchDocument.class);
             if (currentDbState != null && "DONE".equals(currentDbState.getStatus())) {
