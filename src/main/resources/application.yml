@@ -4,23 +4,33 @@ server:
 spring:
   application:
     name: ingestion-gateway
-  elasticsearch:
-    uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/ingestion}
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
 
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
   access-key: minioadmin
   secret-key: minioadmin
-  bucket: prod-bucket
+  bucket-tmp: tmp-bucket
+  bucket-prod: prod-bucket
 
 app:
   worker:
     cron: "0 */5 * * * *" # Every 5 minutes
     topics:
+      ingestion: batch.ingestion.events
       alpha: topic-alpha
       beta: topic-beta
