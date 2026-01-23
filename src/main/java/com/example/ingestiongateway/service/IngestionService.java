@@ -23,6 +23,7 @@ public class IngestionService {
     private final MinioService minioService;
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ServerIdentityService serverIdentityService;
 
     @org.springframework.beans.factory.annotation.Value("${app.worker.topics.ingestion:batch.ingestion.events}")
     private String ingestionTopic;
@@ -43,6 +44,7 @@ public class IngestionService {
                 .ingestionTimestamp(timestamp)
                 .createdAt(new Date())
                 .userInput(userInput)
+                .serverId(serverIdentityService.getServerId())
                 .build();
 
         mongoTemplate.save(document);

@@ -23,6 +23,8 @@ public class BatchDocument {
     @Id
     private String id; // batchId
 
+    private Integer serverId; // Server ID (0-9)
+
     private String status; // PENDING, READY, DONE
 
     // Field for automatic expiration (TTL)
